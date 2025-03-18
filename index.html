@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公众号内容格式化编辑器</title>
+    <style>
+        /* 全局样式 */
+        body, html {
+            font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        /* 容器布局 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        /* 标题 */
+        h1 {
+            text-align: center;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* 双栏布局 */
+        .flex-container {
+            display: flex;
+            gap: 20px;
+            height: calc(100% - 80px);
+            box-sizing: border-box;
+        }
+
+        /* 编辑和预览区域 */
+        .box {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        /* 区域标题 */
+        h3 {
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 按钮容器 */
+        .buttons-container {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 按钮样式 */
+        button, .file-label {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s, transform 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover, .file-label:hover {
+            background-color: #ff4757;
+            transform: translateY(-2px);
+        }
+
+        /* 文本输入框和预览区域 */
+        textarea, #preview {
+            width: 100%;
+            flex-grow: 1;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            resize: none;
+            overflow: auto;
+            background-color: #f8f9fa;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus, #preview:focus {
+            border-color: #ff6b6b;
+            outline: none;
+        }
+
+        #preview {
+            background-color: white;
+        }
+
+        #preview img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* 文件上传输入框 */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* 复选框样式 */
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 767px) {
+            .flex-container {
+                flex-direction: column;
+            }
+
+            .box {
+                min-height: 300px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            h3 {
+                font-size: 16px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding: 30px;
+            }
+
+            button, .file-label {
+                padding: 12px 18px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>公众号内容格式化编辑器</h1>
+        <div class="flex-container">
+            <div class="box">
+                <h3>📝 原文本</h3>
+                <div class="buttons-container">
+                    <button id="renderHtmlButton" onclick="renderHtml()">🔧 还原HTML</button>
+                    <label for="fileInput" class="file-label">📁 导入文件</label>
+                    <input type="file" id="fileInput" accept=".txt, .docx">
+                </div>
+                <textarea id="originalText" placeholder="请输入您的文本..."></textarea>
+            </div>
+            <div class="box">
+                <h3>👀 预览</h3>
+                <div class="buttons-container">
+                    <button onclick="copyPreviewContent()">📋 复制预览内容</button>
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="clearCheckbox">
+                        <label for="clearCheckbox">复制后清空原文本</label>
+                    </div>
+                </div>
+                <div id="preview" contenteditable="true"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const originalText = document.getElementById('originalText');
+        const preview = document.getElementById('preview');
+        const fileInput = document.getElementById('fileInput');
+
+        // 文件导入功能
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                if (file.type === "text/plain") {
+                    reader.onload = () => {
+                        originalText.value = reader.result;
+                        convertToHtml();
+                    };
+                    reader.readAsText(file);
+                } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const text = await extractTextFromWord(arrayBuffer);
+                    originalText.value = text;
+                    convertToHtml();
+                }
+            }
+        });
+
+        // 从Word文件中提取文本
+        async function extractTextFromWord(arrayBuffer) {
+            const doc = await window.docxPreview(arrayBuffer);
+            return doc.getFullText();
+        }
+
+        // 标点符号转换
+        function convertPunctuation(text) {
+            const punctuationMap = {
+                ',': '，',
+                '.': '。',
+                '?': '？',
+                '!': '！',
+                ':': '：',
+                ';': '；',
+                '(': '（',
+                ')': '）',
+                '[': '【',
+                ']': '】',
+                '{': '｛',
+                '}': '｝'
+            };
+            
+            let quoteCount = 0;
+            
+            return text.replace(/[,.?!:;()$$$${}]|"|'/g, match => {
+                if (match === '"' || match === "'") {
+                    quoteCount++;
+                    return quoteCount % 2 === 1 ? '"' : '"';
+                }
+                return punctuationMap[match] || match;
+            });
+        }
+
+        // 转换为HTML
+        function convertToHtml() {
+            const text = originalText.value;
+            const convertedText = convertPunctuation(text);
+            const html = convertedText.replace(/\n/g, '<br>')
+                             .replace(/\*/g, '')
+                             .replace(/#([^#\n]+)/g, '<span style="color: #000; font-weight: bold;">#$1</span>')
+                             .replace(/🌙|✨|😍|🎉|💖|👍|🛒/g, match => `<span style="font-size: 1.2em;">${match}</span>`);
+            
+            preview.innerHTML = html;
+        }
+
+        // 复制预览内容
+        function copyPreviewContent() {
+            const range = document.createRange();
+            range.selectNodeContents(preview);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            try {
+                document.execCommand('copy');
+                if (clearCheckbox.checked) {
+                    originalText.value = '';
+                }
+            } catch (err) {
+                console.error('复制失败:', err);
+            }
+            
+            selection.removeAllRanges();
+        }
+
+        // 保存复选框状态
+        const savedCheckboxState = localStorage.getItem('clearCheckboxState');
+        clearCheckbox.checked = savedCheckboxState === 'true';
+
+        clearCheckbox.addEventListener('change', function() {
+            localStorage.setItem('clearCheckboxState', this.checked);
+        });
+
+        // 还原HTML
+        function renderHtml() {
+            const text = originalText.value;
+            
+            // 处理段落后的<br/>标签
+            const processedText = text.replace(/<\/p>\s*<br\s*\/?>/g, '</p><p style="margin-bottom:0px;"><br/></p>')
+                .replace(/<\/ul>\s*<br\s*\/?>/g, '</ul><p style="margin-bottom:0px;"><br/></p>');
+            
+            preview.innerHTML = processedText;
+            
+            preview.style.fontSize = '17px';
+            preview.style.lineHeight = '1.5';
+            
+            const elements = preview.getElementsByTagName('*');
+            for (let i = 0; i < elements.length; i++) {
+                const element = elements[i];
+                
+                // 处理代码块的缩进
+                if (element.className === 'highlight') {
+                    const codeContainer = element.querySelector('div[style*="color: #d4d4d4"]');
+                    if (codeContainer) {
+                        const codeLines = codeContainer.children;
+                        Array.from(codeLines).forEach(line => {
+                            const text = line.textContent;
+                            const leadingSpaces = text.match(/^[ \t]*/)[0].length;
+                            if (leadingSpaces > 0) {
+                                line.innerHTML = '&nbsp;'.repeat(leadingSpaces) + text.slice(leadingSpaces);
+                            }
+                        });
+                    }
+                }
+                
+                const computedStyle = window.getComputedStyle(element);
+                
+                if (computedStyle.fontSize === preview.style.fontSize) {
+                    element.style.fontSize = '17px';
+                }
+                
+                if (element.tagName.toLowerCase() === 'p') {
+                    if (!element.style.marginBottom) {
+                        element.style.margin = '0';
+                        element.style.padding = '0';
+                    }
+                }
+                
+                if (element.tagName.toLowerCase() === 'img') {
+                    // 保留图片的原始样式
+                    if (!element.style.maxWidth) {
+                        element.style.maxWidth = '100%';
+                    }
+                    if (!element.style.height) {
+                        element.style.height = 'auto';
+                    }
+                }
+                
+                // 只在必要时添加响应式样式
+                if (!element.style.maxWidth) {
+                    element.style.maxWidth = '100%';
+                }
+                element.style.boxSizing = 'border-box';
+                
+                // 保留原始的width和data-width属性
+                if (!element.style.width && !element.getAttribute('width')) {
+                    element.style.width = '';
+                }
+                if (!element.getAttribute('data-width')) {
+                    element.removeAttribute('data-width');
+                }
+            }
+
+            // 处理特殊的样式属性
+            const sections = preview.querySelectorAll('section');
+            sections.forEach(section => {
+                if (section.style.display === 'inline-block') {
+                    section.style.display = 'block';
+                }
+            });
+        }
+
+        // 实时预览功能
+        originalText.addEventListener('input', convertToHtml);
+        
+        // 初始化
+        convertToHtml();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@2.0.0/build/docx-preview.min.js"></script>
+</body>
+</html>
